@@ -74,7 +74,12 @@ SEARCH_TOOL = {
             },
             "person_name": {
                 "type": "string",
-                "description": "Person's name to filter by face recognition"
+                "description": "Single person's name to filter by face recognition"
+            },
+            "person_names": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Multiple person names (AND-combined) — use when searching for assets with ALL listed people, e.g. ['Richard', 'Christoph']"
             },
             "date_from": {
                 "type": "string",
@@ -108,7 +113,8 @@ SYSTEM_PROMPT = """Du bist ein Assistent für die pixx.io DAM-Suche.
 Analysiere die natürlichsprachige Suchanfrage und rufe search_assets mit den richtigen Parametern auf.
 
 Parameter-Extraktion:
-- Personen ('von Richard', 'mit Anna', 'Richard') → person_name
+- Eine Person ('von Richard', 'mit Anna') → person_name
+- Mehrere Personen ('Richard und Christoph', 'Anna und Max') → person_names=['Richard','Christoph'] (AND-verknüpft, nur Bilder mit BEIDEN)
 - Zeitangaben ('letztes Jahr' → Jahr davor, '2024', 'dieser Monat', 'letzte Woche') → date_from + date_to als YYYY-MM-DD
 - Events/Themen ('Sommerfest', 'Messe', 'Produktpräsentation') → query
 - Dateityp ('Bilder'/'Fotos'→image, 'Videos'→video, 'Audiodateien'→audio) → file_type
