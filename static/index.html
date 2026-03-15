@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>pixx.io Spotlight Search</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <div id="app">
+    <!-- Header -->
+    <header class="header">
+      <div class="logo">
+        <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+          <rect width="28" height="28" rx="8" fill="#6B8CFF"/>
+          <path d="M8 14a6 6 0 1 1 12 0 6 6 0 0 1-12 0z" fill="white" opacity="0.9"/>
+          <path d="M18.5 18.5 L23 23" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+        </svg>
+        <span>pixx.io Spotlight</span>
+      </div>
+    </header>
+
+    <!-- Search Section -->
+    <section class="search-section">
+      <div class="search-container" id="searchContainer">
+        <div class="search-input-wrapper">
+          <svg class="search-icon" width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <path d="M9 17A8 8 0 1 0 9 1a8 8 0 0 0 0 16z" stroke="currentColor" stroke-width="2"/>
+            <path d="M19 19l-4.35-4.35" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          <input
+            type="text"
+            id="searchInput"
+            class="search-input"
+            placeholder="Suchen… z.B. Bilder vom Sommerfest 2024 von Richard"
+            autocomplete="off"
+            spellcheck="false"
+          />
+          <div class="spinner" id="spinner" style="display:none">
+            <div class="spinner-ring"></div>
+          </div>
+          <button class="clear-btn" id="clearBtn" style="display:none" aria-label="Suche löschen">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M12 4L4 12M4 4l8 8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </button>
+        </div>
+
+        <!-- Filter badges / "Wie wurde gesucht?" -->
+        <div class="search-details" id="searchDetails" style="display:none">
+          <div class="search-details-header">
+            <span class="search-details-label">Suche interpretiert als</span>
+            <span class="search-mode-badge" id="searchModeBadge"></span>
+          </div>
+          <div class="filter-tags" id="filterTags"></div>
+          <div class="explanation" id="explanation"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Results -->
+    <main class="results-section" id="resultsSection" style="display:none">
+      <div class="results-header" id="resultsHeader"></div>
+      <div class="results-grid" id="resultsGrid"></div>
+      <div class="no-results" id="noResults" style="display:none">
+        <svg width="48" height="48" viewBox="0 0 48 48" fill="none" opacity="0.4">
+          <path d="M21 38A17 17 0 1 0 21 4a17 17 0 0 0 0 34z" stroke="currentColor" stroke-width="2.5"/>
+          <path d="M33 33l10 10" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+          <path d="M16 21h10M21 16v10" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+        </svg>
+        <p>Keine Ergebnisse gefunden</p>
+        <small>Versuche eine andere Suchanfrage</small>
+      </div>
+    </main>
+
+    <!-- Empty state -->
+    <div class="empty-state" id="emptyState">
+      <div class="empty-icon">
+        <svg width="64" height="64" viewBox="0 0 64 64" fill="none" opacity="0.3">
+          <path d="M28 52A24 24 0 1 0 28 4a24 24 0 0 0 0 48z" stroke="currentColor" stroke-width="3"/>
+          <path d="M46 46l14 14" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <h2>Suche in deinem DAM</h2>
+      <p>Beschreibe was du suchst in natürlicher Sprache.</p>
+      <div class="example-queries">
+        <button class="example-chip" data-query="Bilder vom Sommerfest 2024 von Richard">Bilder vom Sommerfest 2024 von Richard</button>
+        <button class="example-chip" data-query="Hochauflösende Querformat-Fotos für den Druck">Hochauflösende Querformat-Fotos für den Druck</button>
+        <button class="example-chip" data-query="Videos vom letzten Jahr">Videos vom letzten Jahr</button>
+        <button class="example-chip" data-query="5-Sterne Bilder">5-Sterne Bilder</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Lightbox -->
+  <div class="lightbox" id="lightbox" style="display:none">
+    <div class="lightbox-backdrop" id="lightboxBackdrop"></div>
+    <div class="lightbox-content">
+      <button class="lightbox-close" id="lightboxClose">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+          <path d="M15 5L5 15M5 5l10 10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </button>
+      <img class="lightbox-img" id="lightboxImg" alt="" />
+      <div class="lightbox-meta" id="lightboxMeta"></div>
+    </div>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
