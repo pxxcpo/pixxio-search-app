@@ -128,7 +128,7 @@ Rufe search_assets EINMAL auf mit allen relevanten Filtern."""
 # ── MCP Server Communication ───────────────────────────────────────────────────
 
 async def call_mcp_search(arguments: dict) -> dict:
-    """Call search_assets on the MCP server via Streamable HTTP."""
+    """Call search_assets on the MCP server via Streamable HTTP (SSE format)."""
     # Always disable previews — we handle thumbnails via our own proxy
     arguments = {**arguments, "include_previews": False, "page_size": min(arguments.get("page_size", 20), 20)}
 
@@ -143,10 +143,29 @@ async def call_mcp_search(arguments: dict) -> dict:
                 "params": {"name": "search_assets", "arguments": arguments},
                 "id": 1,
             },
-            headers={"Content-Type": "application/json", "Accept": "application/json"},
+            headers={
+                "Content-Type": "application/json",
+                "Accept": "application/json, text/event-stream",
+            },
         )
         resp.raise_for_status()
-        data = resp.json()
+        raw = resp.text
+
+    # Parse SSE format: lines starting with "data: " contain the JSON payload
+    data = None
+    for line in raw.splitlines():
+        if line.startswith("data:"):
+            payload = line[5:].strip()
+            if payload:
+                try:
+                    data = json.loads(payload)
+                    break
+                except json.JSONDecodeError:
+                    continue
+
+    # Fallback: try parsing the whole body as JSON
+    if data is None:
+        data = json.loads(raw)
 
     if "error" in data:
         raise ValueError(f"MCP error: {data['error']}")
@@ -161,7 +180,6 @@ async def call_mcp_search(arguments: dict) -> dict:
             except json.JSONDecodeError:
                 pass
 
-    # Fallback: return result directly if it looks like asset data
     return result
 
 
