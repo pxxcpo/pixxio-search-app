@@ -87,6 +87,21 @@ body {
 
 .search-input::placeholder { color: var(--text-faint); }
 
+/* Search button */
+.search-btn {
+  flex-shrink: 0;
+  background: var(--accent);
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  padding: 6px 12px;
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  transition: background var(--transition), opacity var(--transition);
+}
+.search-btn:hover { background: #5a7aee; }
+.search-btn:active { opacity: 0.85; }
+
 /* Spinner */
 .spinner { flex-shrink: 0; width: 20px; height: 20px; }
 .spinner-ring {
@@ -108,6 +123,16 @@ body {
   transition: color var(--transition), background var(--transition);
 }
 .clear-btn:hover { color: var(--text); background: var(--bg-input); }
+
+/* Loading text */
+.loading-text {
+  flex-shrink: 0;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  white-space: nowrap;
+  transition: opacity 0.2s ease;
+}
+.loading-text.fade-out { opacity: 0; }
 
 /* ── Search Details / Filter Panel ─────────────────────────────────────────── */
 .search-details {
@@ -297,6 +322,61 @@ body {
   background: var(--accent-dim);
   border-color: var(--border-focus);
   color: var(--text);
+}
+
+/* ── Load More ────────────────────────────────────────────────────────────── */
+#loadMoreContainer {
+  display: flex; justify-content: center;
+  margin-top: 28px;
+}
+
+.load-more-btn {
+  padding: 10px 32px; border-radius: 20px;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-dim); font-size: 0.9rem;
+  cursor: pointer; font-family: inherit;
+  transition: all var(--transition);
+}
+.load-more-btn:hover {
+  border-color: var(--border-focus);
+  color: var(--text);
+  background: var(--accent-dim);
+}
+
+/* ── Error card ───────────────────────────────────────────────────────────── */
+.error-card {
+  grid-column: 1 / -1;
+  display: flex; flex-direction: column; align-items: center;
+  gap: 12px;
+  padding: 36px 24px;
+  border-radius: var(--radius);
+  background: rgba(255, 80, 80, 0.07);
+  border: 1px solid rgba(255, 80, 80, 0.2);
+  text-align: center;
+}
+
+.error-icon { font-size: 2rem; }
+
+.error-message {
+  color: #ff8080;
+  font-size: 0.92rem;
+  max-width: 480px;
+  line-height: 1.5;
+}
+
+.error-retry-btn {
+  margin-top: 4px;
+  padding: 8px 24px; border-radius: 20px;
+  background: transparent;
+  border: 1px solid rgba(255, 80, 80, 0.4);
+  color: #ff8080; font-size: 0.88rem;
+  cursor: pointer; font-family: inherit;
+  transition: all var(--transition);
+}
+.error-retry-btn:hover {
+  background: rgba(255, 80, 80, 0.12);
+  border-color: rgba(255, 80, 80, 0.6);
 }
 
 /* ── No results ───────────────────────────────────────────────────────────── */

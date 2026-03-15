@@ -36,9 +36,16 @@
             autocomplete="off"
             spellcheck="false"
           />
+          <button class="search-btn" id="searchBtn" aria-label="Suchen">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M7 13A6 6 0 1 0 7 1a6 6 0 0 0 0 12z" stroke="currentColor" stroke-width="1.8"/>
+              <path d="M13 13l-3-3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+            </svg>
+          </button>
           <div class="spinner" id="spinner" style="display:none">
             <div class="spinner-ring"></div>
           </div>
+          <span class="loading-text" id="loadingText" style="display:none"></span>
           <button class="clear-btn" id="clearBtn" style="display:none" aria-label="Suche löschen">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
               <path d="M12 4L4 12M4 4l8 8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -62,6 +69,9 @@
     <main class="results-section" id="resultsSection" style="display:none">
       <div class="results-header" id="resultsHeader"></div>
       <div class="results-grid" id="resultsGrid"></div>
+      <div id="loadMoreContainer" style="display:none">
+        <button class="load-more-btn" id="loadMoreBtn">Mehr laden</button>
+      </div>
       <div class="no-results" id="noResults" style="display:none">
         <svg width="48" height="48" viewBox="0 0 48 48" fill="none" opacity="0.4">
           <path d="M21 38A17 17 0 1 0 21 4a17 17 0 0 0 0 34z" stroke="currentColor" stroke-width="2.5"/>

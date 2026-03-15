@@ -124,13 +124,19 @@ Heute ist 2026-03-15. Berechne Datumsbereiche präzise:
 
 Rufe search_assets EINMAL auf mit allen relevanten Filtern."""
 
+EXPLANATION_SYSTEM_PROMPT = """Du bist ein Assistent für die pixx.io DAM-Suche.
+Erkläre kurz und präzise, was bei der Suche gefunden wurde und welche Filter genutzt wurden.
+Stelle KEINE Fragen. Gib KEINE Handlungsaufforderungen. Kein "Soll ich...", kein "Möchtest du...".
+Antworte nur mit einem oder zwei knappen Sätzen."""
+
 
 # ── MCP Server Communication ───────────────────────────────────────────────────
 
 async def call_mcp_search(arguments: dict) -> dict:
     """Call search_assets on the MCP server via Streamable HTTP (SSE format)."""
     # Always disable previews — we handle thumbnails via our own proxy
-    arguments = {**arguments, "include_previews": False, "page_size": min(arguments.get("page_size", 20), 20)}
+    page = arguments.pop("_page", 1)
+    arguments = {**arguments, "include_previews": False, "page_size": min(arguments.get("page_size", 20), 20), "page": page}
 
     logger.info(f"Calling MCP search_assets with: {json.dumps(arguments)}")
 
@@ -187,6 +193,7 @@ async def call_mcp_search(arguments: dict) -> dict:
 
 class SearchRequest(BaseModel):
     query: str
+    page: int = 1
 
 
 @app.post("/api/search")
@@ -219,7 +226,7 @@ async def search(request: SearchRequest):
 
     # ── Step 2: Call MCP server with Claude's parameters ──────────────────────
     try:
-        mcp_result = await call_mcp_search(filters_used)
+        mcp_result = await call_mcp_search({**filters_used, "_page": request.page})
     except Exception as exc:
         logger.error(f"MCP call failed: {exc}")
         raise HTTPException(502, f"MCP server error: {exc}")
@@ -245,9 +252,8 @@ async def search(request: SearchRequest):
 
     explanation_response = claude.messages.create(
         model="claude-sonnet-4-6",
-        max_tokens=256,
-        system=SYSTEM_PROMPT,
-        tools=[SEARCH_TOOL],
+        max_tokens=128,
+        system=EXPLANATION_SYSTEM_PROMPT,
         messages=messages,
     )
 

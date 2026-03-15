@@ -3,7 +3,9 @@
 // ── DOM Refs ──────────────────────────────────────────────────────────────────
 const searchInput    = document.getElementById('searchInput');
 const spinner        = document.getElementById('spinner');
+const loadingText    = document.getElementById('loadingText');
 const clearBtn       = document.getElementById('clearBtn');
+const searchBtn      = document.getElementById('searchBtn');
 const searchDetails  = document.getElementById('searchDetails');
 const filterTags     = document.getElementById('filterTags');
 const searchModeBadge= document.getElementById('searchModeBadge');
@@ -16,10 +18,14 @@ const emptyState     = document.getElementById('emptyState');
 const lightbox       = document.getElementById('lightbox');
 const lightboxImg    = document.getElementById('lightboxImg');
 const lightboxMeta   = document.getElementById('lightboxMeta');
+const loadMoreContainer = document.getElementById('loadMoreContainer');
+const loadMoreBtn    = document.getElementById('loadMoreBtn');
 
 // ── State ────────────────────────────────────────────────────────────────────
-let debounceTimer  = null;
 let currentResults = [];
+let currentQuery   = '';
+let currentPage    = 1;
+let currentTotal   = 0;
 
 // ── Filter label config ───────────────────────────────────────────────────────
 const FILTER_CONFIG = {
@@ -40,15 +46,21 @@ const FILTER_CONFIG = {
 searchInput.addEventListener('input', () => {
   const val = searchInput.value.trim();
   clearBtn.style.display = val ? 'flex' : 'none';
-
-  clearTimeout(debounceTimer);
-  if (!val) { resetUI(); return; }
-
-  debounceTimer = setTimeout(() => performSearch(val), 500);
+  if (!val) resetUI();
 });
 
 searchInput.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') { clearSearch(); }
+  if (e.key === 'Enter') {
+    const val = searchInput.value.trim();
+    if (val) performSearch(val);
+  } else if (e.key === 'Escape') {
+    clearSearch();
+  }
+});
+
+searchBtn.addEventListener('click', () => {
+  const val = searchInput.value.trim();
+  if (val) performSearch(val);
 });
 
 clearBtn.addEventListener('click', clearSearch);
@@ -66,23 +78,66 @@ function resetUI() {
   emptyState.style.display = 'block';
   noResults.style.display = 'none';
   spinner.style.display = 'none';
+  loadingText.style.display = 'none';
+  loadMoreContainer.style.display = 'none';
   resultsGrid.innerHTML = '';
   currentResults = [];
+  currentPage = 1;
+  currentTotal = 0;
 }
 
-async function performSearch(query) {
+// ── Loading text rotation ─────────────────────────────────────────────────────
+const LOADING_STEPS = [
+  'Claude analysiert deine Anfrage…',
+  'Suche läuft…',
+  'Ergebnisse werden geladen…',
+];
+
+let loadingInterval = null;
+
+function startLoadingText() {
+  let step = 0;
+  loadingText.textContent = LOADING_STEPS[0];
+  loadingText.style.display = 'inline';
+  loadingText.classList.remove('fade-out');
+
+  loadingInterval = setInterval(() => {
+    step = (step + 1) % LOADING_STEPS.length;
+    loadingText.classList.add('fade-out');
+    setTimeout(() => {
+      loadingText.textContent = LOADING_STEPS[step];
+      loadingText.classList.remove('fade-out');
+    }, 200);
+  }, 2000);
+}
+
+function stopLoadingText() {
+  clearInterval(loadingInterval);
+  loadingInterval = null;
+  loadingText.style.display = 'none';
+}
+
+async function performSearch(query, page = 1) {
+  if (page === 1) {
+    currentQuery = query;
+    currentPage = 1;
+    resultsGrid.innerHTML = '';
+    currentResults = [];
+    searchDetails.style.display = 'none';
+    resultsSection.style.display = 'none';
+    emptyState.style.display = 'none';
+    noResults.style.display = 'none';
+    loadMoreContainer.style.display = 'none';
+  }
+
   spinner.style.display = 'flex';
-  searchDetails.style.display = 'none';
-  resultsSection.style.display = 'none';
-  emptyState.style.display = 'none';
-  noResults.style.display = 'none';
-  resultsGrid.innerHTML = '';
+  startLoadingText();
 
   try {
     const resp = await fetch('/api/search', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query }),
+      body: JSON.stringify({ query, page }),
     });
 
     if (!resp.ok) {
@@ -91,15 +146,21 @@ async function performSearch(query) {
     }
 
     const data = await resp.json();
-    currentResults = data.results || [];
+    const newResults = data.results || [];
+    currentTotal = data.total || 0;
+    currentPage = page;
+    currentResults = page === 1 ? newResults : [...currentResults, ...newResults];
 
-    renderSearchDetails(data.search_details);
-    renderResults(data.results, data.total);
+    if (page === 1) {
+      renderSearchDetails(data.search_details);
+    }
+    renderResults(newResults, page);
 
   } catch (err) {
     renderError(err.message);
   } finally {
     spinner.style.display = 'none';
+    stopLoadingText();
   }
 }
 
@@ -151,26 +212,35 @@ function renderSearchDetails(details) {
 }
 
 // ── Render: Results ────────────────────────────────────────────────────────────
-function renderResults(results, total) {
+function renderResults(newResults, page) {
   resultsSection.style.display = 'block';
 
-  if (!results || results.length === 0) {
-    noResults.style.display = 'flex';
-    resultsHeader.textContent = '';
+  if (!newResults || newResults.length === 0) {
+    if (page === 1) {
+      noResults.style.display = 'flex';
+      resultsHeader.textContent = '';
+    }
+    loadMoreContainer.style.display = 'none';
     return;
   }
 
-  resultsHeader.innerHTML = `<strong>${total.toLocaleString('de')}</strong> Ergebnisse gefunden — zeige ${results.length}`;
+  resultsHeader.innerHTML = `<strong>${currentTotal.toLocaleString('de')}</strong> Ergebnisse gefunden — zeige ${currentResults.length}`;
   noResults.style.display = 'none';
-  resultsGrid.innerHTML = '';
 
-  results.forEach((asset, idx) => {
-    const card = createAssetCard(asset, idx);
+  newResults.forEach((asset) => {
+    const card = createAssetCard(asset);
     resultsGrid.appendChild(card);
   });
+
+  // Show "load more" if there are more results
+  if (currentResults.length < currentTotal) {
+    loadMoreContainer.style.display = 'flex';
+  } else {
+    loadMoreContainer.style.display = 'none';
+  }
 }
 
-function createAssetCard(asset, idx) {
+function createAssetCard(asset) {
   const card = document.createElement('div');
   card.className = 'asset-card';
   card.tabIndex = 0;
@@ -257,6 +327,11 @@ function createAssetCard(asset, idx) {
   return card;
 }
 
+// ── Load More ─────────────────────────────────────────────────────────────────
+loadMoreBtn.addEventListener('click', () => {
+  performSearch(currentQuery, currentPage + 1);
+});
+
 // ── Lightbox ───────────────────────────────────────────────────────────────────
 function openLightbox(asset) {
   lightboxImg.src = '';
@@ -322,9 +397,19 @@ document.addEventListener('keydown', (e) => {
 // ── Error ─────────────────────────────────────────────────────────────────────
 function renderError(msg) {
   resultsSection.style.display = 'block';
-  resultsHeader.innerHTML = `<span style="color:#ff6b6b">⚠ Fehler: ${escHtml(msg)}</span>`;
+  resultsHeader.textContent = '';
   noResults.style.display = 'none';
-  resultsGrid.innerHTML = '';
+  loadMoreContainer.style.display = 'none';
+  resultsGrid.innerHTML = `
+    <div class="error-card">
+      <div class="error-icon">⚠</div>
+      <div class="error-message">${escHtml(msg)}</div>
+      <button class="error-retry-btn" id="errorRetryBtn">Erneut versuchen</button>
+    </div>
+  `;
+  document.getElementById('errorRetryBtn').addEventListener('click', () => {
+    if (currentQuery) performSearch(currentQuery);
+  });
 }
 
 // ── Example queries ───────────────────────────────────────────────────────────
