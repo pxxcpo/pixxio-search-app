@@ -194,6 +194,7 @@ async def call_mcp_search(arguments: dict) -> dict:
 class SearchRequest(BaseModel):
     query: str
     page: int = 1
+    filters: dict | None = None  # wenn gesetzt → Claude überspringen
 
 
 @app.post("/api/search")
@@ -201,66 +202,80 @@ async def search(request: SearchRequest):
     if not ANTHROPIC_API_KEY:
         raise HTTPException(500, "ANTHROPIC_API_KEY not configured")
 
-    claude = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    if request.filters is not None:
+        # ── Filters-Override: Claude überspringen, direkt zu MCP ──────────────
+        filters_used = dict(request.filters)
+        logger.info(f"Filters override (no Claude): {json.dumps(filters_used)}")
 
-    # ── Step 1: Claude interprets query → tool_use block ──────────────────────
-    messages = [{"role": "user", "content": request.query}]
+        try:
+            mcp_result = await call_mcp_search({**filters_used, "_page": request.page})
+        except Exception as exc:
+            logger.error(f"MCP call failed: {exc}")
+            raise HTTPException(502, f"MCP server error: {exc}")
 
-    claude_response = claude.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=512,
-        system=SYSTEM_PROMPT,
-        tools=[SEARCH_TOOL],
-        tool_choice={"type": "any"},
-        messages=messages,
-    )
+        results = mcp_result.get("results", [])
+        total   = mcp_result.get("total_results", 0)
+        explanation = f"{total} Ergebnisse mit den aktuellen Filtern."
 
-    tool_use_block = next(
-        (b for b in claude_response.content if b.type == "tool_use"), None
-    )
-    if not tool_use_block:
-        raise HTTPException(500, "Claude did not generate a search call")
+    else:
+        # ── Standard-Pfad: Claude interpretiert Query ─────────────────────────
+        claude = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
-    filters_used: dict = dict(tool_use_block.input)
-    logger.info(f"Claude chose filters: {json.dumps(filters_used)}")
+        messages = [{"role": "user", "content": request.query}]
 
-    # ── Step 2: Call MCP server with Claude's parameters ──────────────────────
-    try:
-        mcp_result = await call_mcp_search({**filters_used, "_page": request.page})
-    except Exception as exc:
-        logger.error(f"MCP call failed: {exc}")
-        raise HTTPException(502, f"MCP server error: {exc}")
+        claude_response = claude.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=512,
+            system=SYSTEM_PROMPT,
+            tools=[SEARCH_TOOL],
+            tool_choice={"type": "any"},
+            messages=messages,
+        )
 
-    results = mcp_result.get("results", [])
-    total   = mcp_result.get("total_results", 0)
+        tool_use_block = next(
+            (b for b in claude_response.content if b.type == "tool_use"), None
+        )
+        if not tool_use_block:
+            raise HTTPException(500, "Claude did not generate a search call")
 
-    # ── Step 3: Get Claude's explanation of the search ────────────────────────
-    messages.append({"role": "assistant", "content": claude_response.content})
-    messages.append({
-        "role": "user",
-        "content": [{
-            "type": "tool_result",
-            "tool_use_id": tool_use_block.id,
-            "content": json.dumps({
-                "total_results": total,
-                "results_count": len(results),
-                "page": mcp_result.get("page", 1),
-                "search_mode": mcp_result.get("search_mode", "standard"),
-            }),
-        }],
-    })
+        filters_used: dict = dict(tool_use_block.input)
+        logger.info(f"Claude chose filters: {json.dumps(filters_used)}")
 
-    explanation_response = claude.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=128,
-        system=EXPLANATION_SYSTEM_PROMPT,
-        messages=messages,
-    )
+        try:
+            mcp_result = await call_mcp_search({**filters_used, "_page": request.page})
+        except Exception as exc:
+            logger.error(f"MCP call failed: {exc}")
+            raise HTTPException(502, f"MCP server error: {exc}")
 
-    explanation = next(
-        (b.text for b in explanation_response.content if hasattr(b, "text")),
-        f"Ich habe {total} Ergebnisse gefunden."
-    )
+        results = mcp_result.get("results", [])
+        total   = mcp_result.get("total_results", 0)
+
+        messages.append({"role": "assistant", "content": claude_response.content})
+        messages.append({
+            "role": "user",
+            "content": [{
+                "type": "tool_result",
+                "tool_use_id": tool_use_block.id,
+                "content": json.dumps({
+                    "total_results": total,
+                    "results_count": len(results),
+                    "page": mcp_result.get("page", 1),
+                    "search_mode": mcp_result.get("search_mode", "standard"),
+                }),
+            }],
+        })
+
+        explanation_response = claude.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=128,
+            system=EXPLANATION_SYSTEM_PROMPT,
+            messages=messages,
+        )
+
+        explanation = next(
+            (b.text for b in explanation_response.content if hasattr(b, "text")),
+            f"Ich habe {total} Ergebnisse gefunden."
+        )
 
     # ── Add proxy preview URLs ────────────────────────────────────────────────
     for r in results:

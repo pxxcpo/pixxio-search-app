@@ -45,12 +45,19 @@
           <div class="spinner" id="spinner" style="display:none">
             <div class="spinner-ring"></div>
           </div>
-          <span class="loading-text" id="loadingText" style="display:none"></span>
           <button class="clear-btn" id="clearBtn" style="display:none" aria-label="Suche löschen">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
               <path d="M12 4L4 12M4 4l8 8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
             </svg>
           </button>
+        </div>
+
+        <!-- Loading status -->
+        <div class="loading-status" id="loadingStatus" style="display:none">
+          <div class="loading-dots">
+            <span></span><span></span><span></span>
+          </div>
+          <span id="loadingText"></span>
         </div>
 
         <!-- Filter badges / "Wie wurde gesucht?" -->

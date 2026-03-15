@@ -3,6 +3,7 @@
 // ── DOM Refs ──────────────────────────────────────────────────────────────────
 const searchInput    = document.getElementById('searchInput');
 const spinner        = document.getElementById('spinner');
+const loadingStatus  = document.getElementById('loadingStatus');
 const loadingText    = document.getElementById('loadingText');
 const clearBtn       = document.getElementById('clearBtn');
 const searchBtn      = document.getElementById('searchBtn');
@@ -26,6 +27,7 @@ let currentResults = [];
 let currentQuery   = '';
 let currentPage    = 1;
 let currentTotal   = 0;
+let currentFilters = {};
 
 // ── Filter label config ───────────────────────────────────────────────────────
 const FILTER_CONFIG = {
@@ -78,19 +80,21 @@ function resetUI() {
   emptyState.style.display = 'block';
   noResults.style.display = 'none';
   spinner.style.display = 'none';
-  loadingText.style.display = 'none';
+  loadingStatus.style.display = 'none';
   loadMoreContainer.style.display = 'none';
   resultsGrid.innerHTML = '';
   currentResults = [];
   currentPage = 1;
   currentTotal = 0;
+  currentFilters = {};
 }
 
 // ── Loading text rotation ─────────────────────────────────────────────────────
 const LOADING_STEPS = [
-  'Claude analysiert deine Anfrage…',
-  'Suche läuft…',
-  'Ergebnisse werden geladen…',
+  'Claude liest deinen Gedanken… fast ✨',
+  'Wühle durch tausende Bilder… 🕵️',
+  'KI arbeitet auf Hochtouren ☕',
+  'Fast da — versprochen 🤞',
 ];
 
 let loadingInterval = null;
@@ -98,8 +102,8 @@ let loadingInterval = null;
 function startLoadingText() {
   let step = 0;
   loadingText.textContent = LOADING_STEPS[0];
-  loadingText.style.display = 'inline';
   loadingText.classList.remove('fade-out');
+  loadingStatus.style.display = 'flex';
 
   loadingInterval = setInterval(() => {
     step = (step + 1) % LOADING_STEPS.length;
@@ -114,7 +118,7 @@ function startLoadingText() {
 function stopLoadingText() {
   clearInterval(loadingInterval);
   loadingInterval = null;
-  loadingText.style.display = 'none';
+  loadingStatus.style.display = 'none';
 }
 
 async function performSearch(query, page = 1) {
@@ -164,6 +168,47 @@ async function performSearch(query, page = 1) {
   }
 }
 
+async function performSearchWithFilters(filters) {
+  currentPage = 1;
+  resultsGrid.innerHTML = '';
+  currentResults = [];
+  searchDetails.style.display = 'none';
+  resultsSection.style.display = 'none';
+  emptyState.style.display = 'none';
+  noResults.style.display = 'none';
+  loadMoreContainer.style.display = 'none';
+
+  spinner.style.display = 'flex';
+  startLoadingText();
+
+  try {
+    const resp = await fetch('/api/search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: currentQuery, page: 1, filters }),
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ detail: resp.statusText }));
+      throw new Error(err.detail || 'Server error');
+    }
+
+    const data = await resp.json();
+    const newResults = data.results || [];
+    currentTotal = data.total || 0;
+    currentResults = newResults;
+
+    renderSearchDetails(data.search_details);
+    renderResults(newResults, 1);
+
+  } catch (err) {
+    renderError(err.message);
+  } finally {
+    spinner.style.display = 'none';
+    stopLoadingText();
+  }
+}
+
 // ── Render: Filter Details ─────────────────────────────────────────────────────
 function renderSearchDetails(details) {
   if (!details) return;
@@ -171,8 +216,11 @@ function renderSearchDetails(details) {
   const filters = details.filters_used || {};
   const mode    = details.search_mode || 'standard';
 
+  // Save current filters for chip removal and toggle
+  currentFilters = { ...filters };
+
   // Mode badge
-  searchModeBadge.textContent = mode === 'semantic' ? '🧠 Semantisch' : '🔍 Standard';
+  searchModeBadge.textContent = mode === 'semantic' ? '🧠 Semantisch ↔' : '🔍 Standard ↔';
   searchModeBadge.style.display = 'inline';
 
   // Filter tags
@@ -196,7 +244,15 @@ function renderSearchDetails(details) {
       <span class="tag-icon">${cfg.icon}</span>
       <span class="tag-key">${cfg.label}:</span>
       <span class="tag-value">${escHtml(String(displayVal))}</span>
+      <button class="tag-remove" data-key="${escHtml(key)}" aria-label="Filter entfernen">×</button>
     `;
+    tag.querySelector('.tag-remove').addEventListener('click', (e) => {
+      e.stopPropagation();
+      const newFilters = { ...currentFilters };
+      delete newFilters[key];
+      currentFilters = newFilters;
+      performSearchWithFilters(newFilters);
+    });
     filterTags.appendChild(tag);
   }
 
@@ -210,6 +266,14 @@ function renderSearchDetails(details) {
 
   searchDetails.style.display = 'block';
 }
+
+// Semantic/Standard toggle on badge click
+searchModeBadge.addEventListener('click', () => {
+  const newFilters = { ...currentFilters };
+  newFilters.semantic = !newFilters.semantic;
+  currentFilters = newFilters;
+  performSearchWithFilters(newFilters);
+});
 
 // ── Render: Results ────────────────────────────────────────────────────────────
 function renderResults(newResults, page) {
