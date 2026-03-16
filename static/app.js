@@ -33,6 +33,7 @@ let currentFilters = {};
 const FILTER_CONFIG = {
   query:          { icon: '🔍', label: 'Suche' },
   person_name:    { icon: '👤', label: 'Person' },
+  person_names:   { icon: '👤', label: 'Person' },  // array → one chip per entry
   file_type:      { icon: '🗂', label: 'Typ', map: { image: 'Bild', video: 'Video', audio: 'Audio' } },
   file_extension: { icon: '📄', label: 'Format' },
   date_from:      { icon: '📅', label: 'Ab' },
@@ -232,6 +233,34 @@ function renderSearchDetails(details) {
 
     const cfg = FILTER_CONFIG[key];
     if (!cfg) continue;
+
+    // Array values (e.g. person_names) → one chip per entry
+    if (Array.isArray(value)) {
+      value.forEach((entry) => {
+        const tag = document.createElement('div');
+        tag.className = 'filter-tag';
+        tag.innerHTML = `
+          <span class="tag-icon">${cfg.icon}</span>
+          <span class="tag-key">${cfg.label}:</span>
+          <span class="tag-value">${escHtml(String(entry))}</span>
+          <button class="tag-remove" aria-label="Filter entfernen">×</button>
+        `;
+        tag.querySelector('.tag-remove').addEventListener('click', (e) => {
+          e.stopPropagation();
+          const newFilters = { ...currentFilters };
+          const remaining = (newFilters[key] || []).filter(n => n !== entry);
+          if (remaining.length === 0) {
+            delete newFilters[key];
+          } else {
+            newFilters[key] = remaining;
+          }
+          currentFilters = newFilters;
+          performSearchWithFilters(newFilters);
+        });
+        filterTags.appendChild(tag);
+      });
+      continue;
+    }
 
     let displayVal = value;
     if (cfg.map && cfg.map[value]) displayVal = cfg.map[value];
