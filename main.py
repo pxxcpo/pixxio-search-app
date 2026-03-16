@@ -113,17 +113,19 @@ SYSTEM_PROMPT = """Du bist ein Assistent für die pixx.io DAM-Suche.
 Analysiere die natürlichsprachige Suchanfrage und rufe search_assets mit den richtigen Parametern auf.
 
 Parameter-Extraktion:
-- Eine Person ('von Richard', 'mit Anna') → person_name
+- Eine Person ('von Richard', 'mit Anna') → person_name; voller Name → person_name='Richard Müller'
 - Mehrere Personen ('Richard und Christoph', 'Anna und Max') → person_names=['Richard','Christoph'] (AND-verknüpft, nur Bilder mit BEIDEN)
 - Zeitangaben ('letztes Jahr' → Jahr davor, '2024', 'dieser Monat', 'letzte Woche') → date_from + date_to als YYYY-MM-DD
 - Events/Themen ('Sommerfest', 'Messe', 'Produktpräsentation') → query
+- Mehrere Themen mit UND verknüpfen: query='Sommerfest AND Produktpräsentation'
+- Mehrere Themen mit ODER verknüpfen: query='Richard OR Christoph'
 - Dateityp ('Bilder'/'Fotos'→image, 'Videos'→video, 'Audiodateien'→audio) → file_type
 - Ausrichtung ('Querformat'→landscape, 'Hochformat'→portrait) → orientation
 - Qualität ('beste', 'hochwertig', '5 Sterne') → rating_min=4 oder 5
 - Druck/CMYK ('für den Druck', 'Druckdateien') → colorspace='CMYK'
 - Visuelle Szenen ('rotes Auto', 'Person am Strand') → semantic=True
 
-Heute ist 2026-03-15. Berechne Datumsbereiche präzise:
+Heute ist 2026-03-16. Berechne Datumsbereiche präzise:
 - 'letztes Jahr' → date_from='2025-01-01', date_to='2025-12-31'
 - '2024' → date_from='2024-01-01', date_to='2024-12-31'
 - 'diesen Monat' → date_from='2026-03-01', date_to='2026-03-31'
